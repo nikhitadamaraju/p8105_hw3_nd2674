@@ -1,0 +1,32 @@
+---
+title: "Homework 3"
+author: Nikhita Damaraju
+output: github_document
+---
+
+This is my solution to Homework 3.
+
+Library imports
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(ggplot2)
+```
+
+
+
+# Section 1
+
+Here's a **code chunk** that samples from 
+a _normal distribution_:
+
+```{r}
+samp = rnorm(100)
+length(samp)
+```
+
+# Section 2
+
+I can take the mean of the sample, too!
+The mean is `r mean(samp)`.
