@@ -6,27 +6,72 @@ output: github_document
 
 This is my solution to Homework 3.
 
-Library imports
+Library imports  ###HIDE OUTPUT HERE###
 
-```{r}
-library(tidyverse)
-library(readxl)
+```{r} 
+library(p8105.datasets)
 library(ggplot2)
+library(tidyverse)
 ```
 
-
-
-# Section 1
-
-Here's a **code chunk** that samples from 
-a _normal distribution_:
+# Problem 1
 
 ```{r}
-samp = rnorm(100)
-length(samp)
+data("instacart")
+```
+
+This dataset contains `r nrow(instacart)` rows and `r ncol(instacart)` columns. Observations are the level of items in orders by the user. There are user / order variables -- user ID, order ID, order day, and order hour. There are also item variables -- name, aisle, department, and some numeric codes. Products are in aisles and aisles are in departments.
+
+## Number of aisles and the ones most items are from
+
+```{r}
+instacart %>%
+  count(aisle) %>%
+  arrange(desc(n))
+```
+
+## Plot of number of items ordered in each aisles with more than 10k items 
+
+```{r}
+instacart %>%
+  count(aisle) %>%
+  filter(n > 10000) %>%
+  mutate(
+    aisle = factor(aisle),
+    aisle = fct_reorder(aisle, n)
+  ) %>%
+  ggplot(aes(x = aisle, y = n)) +
+  geom_point() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+```
+
+## Table showing most popular items 
+
+```{r}
+instacart %>%
+  filter(aisle %in% c("baking ingredients", "dog food care", "packaged vegetables fruits")) %>%
+  group_by(aisle) %>%
+  count(product_name) %>%
+  mutate(rank = min_rank(desc(n))) %>%
+  filter(rank < 4) %>%
+  arrange(aisle, rank) %>%
+  knitr::kable()
+```
+
+## Table showing mean hour of the day
+
+```{r}
+instacart %>%
+  filter(product_name %in% c("Pink Lady Apples", "Coffee Ice Cream")) %>%
+  group_by(product_name, order_dow) %>%
+  summarize(mean_hour = mean(order_hour_of_day)) %>%
+  pivot_wider(
+    names_from = order_dow,
+    values_from = mean_hour
+  ) %>%
+  knitr::kable()
 ```
 
 # Section 2
 
 I can take the mean of the sample, too!
-The mean is `r mean(samp)`.
