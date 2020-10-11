@@ -6,12 +6,14 @@ output: github_document
 
 This is my solution to Homework 3.
 
-Library imports  ###HIDE OUTPUT HERE###
+Library imports 
 
-```{r} 
+```{r settings, message = FALSE} 
 library(p8105.datasets)
 library(ggplot2)
 library(tidyverse)
+library(patchwork)
+library(hexbin)
 ```
 
 # Problem 1
@@ -20,7 +22,7 @@ library(tidyverse)
 data("instacart")
 ```
 
-This dataset contains `r nrow(instacart)` rows and `r ncol(instacart)` columns. Observations are the level of items in orders by the user. There are user / order variables -- user ID, order ID, order day, and order hour. There are also item variables -- name, aisle, department, and some numeric codes. Products are in aisles and aisles are in departments.
+This dataset contains `r nrow(instacart)` rows and `r ncol(instacart)` columns. Observations are the level of items in orders by the user. There are user / order variables -- user ID, order ID, order day, and order hour. There are also item variables -- name, aisle, department, and some numeric codes. Products are in aisles and aisles are in departments. Each aisle consists of a vast set of products that are labelled by 'product_name'. There are 134 aisles in total.
 
 ## Number of aisles and the ones most items are from
 
@@ -29,6 +31,8 @@ instacart %>%
   count(aisle) %>%
   arrange(desc(n))
 ```
+
+The items with the maximum counts belong to fresh vegetables, fresh fruits and packaged vegetables fruits aisles. 
 
 ## Plot of number of items ordered in each aisles with more than 10k items 
 
@@ -42,7 +46,12 @@ instacart %>%
   ) %>%
   ggplot(aes(x = aisle, y = n)) +
   geom_point() +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+  labs(
+    title = "Number of items ordered in each aisle",
+    x = "Aisle",
+    y = "Number of items"
+  )
 ```
 
 ## Table showing most popular items 
@@ -72,6 +81,196 @@ instacart %>%
   knitr::kable()
 ```
 
-# Section 2
+The above table shows the top 3 items in each of the aisles mentioned in the problem. This gives an idea of what product in each aisle is purchased the most along with the number of times it has been purchased.
 
-I can take the mean of the sample, too!
+# Problem 2
+
+## Load, tidy and wrangle dataset 
+
+```{r}
+accel_df = 
+  read_csv('./hw3_datasets/accel_data.csv') %>%
+  janitor::clean_names() %>%
+  pivot_longer(
+    activity_1:activity_1440,
+    names_to = "minute",
+    names_prefix = "activity_",
+    values_to = "activity"
+  ) %>%
+  mutate(day_type = ifelse(day %in% c("Saturday", "Sunday"),"weekend", "weekday"),
+         minute = as.integer(minute))
+```
+
+There are `r nrow(accel_df)` rows and `r ncol(accel_df)` columns in the accelometer dataset. Columns include week number, day_id, day, minute of the day, activity levels recorded in each minute of the day and day_type that has been added to distinguish weekends from weekdays.
+
+## Average activity over the day
+
+```{r}
+accel_df %>%
+  mutate(
+    day = forcats::fct_relevel(day, c("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"))
+  ) %>%
+  group_by(week, day) %>%
+  summarize(
+    total_activity = mean(activity)
+  ) %>%
+  pivot_wider(
+    names_from = day,
+    values_from = total_activity
+  ) %>%
+  knitr::kable()
+```
+
+ 
+## 24-hour activity time course over a day
+
+```{r}
+accel_df %>%
+  group_by(day_id, minute) %>%
+  summarize(
+    hourly_activity = mean(activity)
+  ) %>%
+  ggplot(aes(x = minute, y = hourly_activity, color = day_id)) +
+  geom_point() +
+  geom_line() +
+  theme_bw() +
+  labs(
+    title = "24-hour activity for different days",
+    x = "Minutes of the day",
+    y = "Activity"
+  )
+```
+
+It can be seen that there is an increase in activity in the first 500 minutes of the day for a few days. However, majority of the acitivity appears to increase in the last 250 minutes of a day.
+
+## Supplementary plot: 24-hour activity time course over a week
+
+```{r}
+accel_df %>%
+  mutate(
+    day = forcats::fct_relevel(day, c("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday")),
+    hour = round(minute/60)
+  ) %>%
+  group_by(day, hour) %>%
+  summarize(
+    hourly_activity = mean(activity)
+  ) %>%
+  ggplot(aes(x = hour, y = hourly_activity, color = day)) +
+  geom_point() +
+  geom_line() +
+  scale_x_continuous(
+    breaks = c(0:24)
+  ) +
+  theme_bw() +
+  labs(
+    title = "24-hour activity for different days of the week",
+    x = "Hour",
+    y = "Activity"
+  )
+```
+
+In this supplementary plot, it can ve seen that on an average, Fridays have maximum activity in the last few hours in a day. The two largest peaks belong to Sundays between 9 to 13 hours and Fridays between 20-23 hours. It is also interesting to observe that on an average, weekends have lesser activity than weekdays.
+
+# Problem 3
+
+```{r}
+data("ny_noaa")
+```
+
+## Data cleaning
+
+```{r}
+ny_noaa =
+  ny_noaa %>%
+  separate(date, into = c("year", "month", "day"), sep = "-" ,convert = TRUE) 
+ny_noaa = 
+  ny_noaa %>% 
+  mutate(
+    tmin = as.integer(tmin),
+    tmax = as.integer(tmax),
+    tmin = tmin/10,
+    tmax = tmax/10,
+    prcp = prcp/10
+  )
+
+# Most common snowfall counts in a year
+ny_noaa %>%
+  count(snow) %>%
+  arrange(desc(n))
+```
+
+The dataset from the *rnoaa package* consists of `r nrow(ny_noaa)` rows and `r ncol(ny_noaa)` columns. List of columns include station id, year, month, day, record of precipitation, snowfall, snow depth, maximum and minimum temperatures (in C). The dataset has been cleaned to include measurements of temperature and precipitation in the correct units. 
+
+The most common observed values for snowfall in descending order are:
+* 0: this could be possible as it does not snow for majority of the yeat
+* NA: this is due to lack of record at certain times of the year
+* 25 mm
+
+## Two panel plots between Jan and July showing Avg max temp in each month across years.
+
+```{r}
+#Since plotting steps do not require NA values, the following step removes all NA values in the dataset
+clean_df = 
+  ny_noaa %>% drop_na()
+
+jan = 
+  clean_df %>%
+  group_by(id, year, month) %>%
+  summarize(mean_tmax = mean(tmax)) %>%
+  filter(month == 1) %>%
+  ggplot(aes(x = year, y = mean_tmax, group = id)) +
+  geom_point() + geom_path() +
+  labs(
+    title = "Average max tempertaures for January",
+    x = "Year",
+    y = "Average max temperature (C)"
+  )
+
+july = 
+  clean_df %>%
+  group_by(id, year, month) %>%
+  summarize(mean_tmax = mean(tmax)) %>%
+  filter(month == 7) %>%
+  ggplot(aes(x = year, y = mean_tmax, group = id)) +
+  geom_point() + geom_path() +
+  labs(
+    title = "Average max tempertaures for July",
+    x = "Year",
+    y = "Average max temperature (C)"
+  )
+
+jan + july
+  
+```
+
+While the average temperatures across years semmes constant in the month of July, the average maximum temperatures appear to have a slight increase in the month of January. This could be due to the effect of global warming leading to warmer winters.
+
+## 2-panel plots
+
+```{r}
+temp_plot = 
+  ggplot(clean_df, aes(x = tmin, y = tmax)) + 
+  geom_hex() +
+  labs(
+    title = "Temperature plot",
+    x = "Minimum daily temperature (C)",
+    y = "Maxiumum daily temperature (C)"
+  )
+
+snow_plot = 
+  clean_df %>%
+  filter(snow > 0 & snow < 100) %>%
+  ggplot(aes(x = year, y = snow, group = year)) + 
+  geom_boxplot() +
+  labs(
+    title = "Snowfall plot",
+    x = "Year",
+    y = "Snowfall (mm)"
+  )
+
+temp_plot + snow_plot
+```
+
+Temperature hex plot between t_max and t_min shows that majority of the records exist in the boundary of the plot with very less density in the middle region. This is possibly due to the expected pattern of temperature change that occurs during a day. 
+
+On analyzing the snowfall plot, it can be observed that the average snowfall across the years appears to be constant. However, the data recorded seems inconsistent due to the existence of some outliers.
